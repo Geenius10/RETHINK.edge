@@ -1,0 +1,1 @@
+PLAY. v5 Teacher: adaptive skill history; completion by full runs + max-time safety; adaptive tempo; learning explanation modals; session recap; PWA/offline/backup retained; JS syntax checked.

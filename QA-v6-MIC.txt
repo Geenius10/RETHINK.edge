@@ -1,0 +1,11 @@
+PLAY. Guitar v6 Microphone
+- Uses navigator.mediaDevices.getUserMedia after user action
+- Web Audio AnalyserNode with 4096 sample time-domain buffer
+- Normalized autocorrelation pitch detection, guitar-oriented 70–1200 Hz
+- Stable-pitch gate + RMS threshold
+- Single-note exercises only for automatic scoring
+- Timing windows derive from the exact AudioContext playback timeline
+- Coach run counts only when mic score >=82% (when mic scoring is active)
+- Guide tone automatically disabled when microphone is enabled
+- Microphone stops when app goes into background
+- JavaScript syntax checked

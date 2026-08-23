@@ -43,6 +43,16 @@ header{display:flex;justify-content:space-between;align-items:end;margin-bottom:
 .learnCard:active{transform:scale(.99)}
 .learnGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 @media(max-width:620px){.learnGrid{grid-template-columns:1fr}}
+
+.teacherCue{border:1px solid var(--line);border-radius:14px;background:#fff;padding:10px;display:grid;gap:6px;margin:8px 0}.teacherCue b{font-size:12px}.teacherCue span{font-size:10px;color:var(--muted)}
+.sessionSummary{position:fixed;inset:0;background:rgba(15,15,15,.35);z-index:90;display:grid;align-items:end}.sessionSummary>div{background:#f6f3ee;border-radius:22px 22px 0 0;padding:18px;display:grid;gap:12px;max-height:90dvh;overflow:auto}.summaryStats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.summaryStats div,.summaryNext{border:1px solid var(--line);border-radius:13px;padding:10px;background:#fff}.summaryStats b{display:block;font-size:17px}.summaryStats span{font-size:9px;color:var(--muted)}
+
+.micPanel{border:1px solid var(--line);border-radius:16px;padding:12px;margin:10px 0;background:#fff;display:grid;gap:10px}
+.micTop{display:flex;justify-content:space-between;gap:10px;align-items:center}.micTop b{font-size:12px}
+.micReadout{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.micReadout div{border:1px solid var(--line);border-radius:12px;padding:8px;background:#fbfaf8;display:grid;gap:2px}.micReadout span,.micReadout small{font-size:9px;color:var(--muted)}.micReadout b{font-size:18px}
+.micMeter{height:6px;background:#e3ded7;border-radius:99px;overflow:hidden}.micMeter i{display:block;height:100%;width:0;background:var(--accent);transition:width .08s linear}
+.micHint{font-size:10px;color:var(--muted);line-height:1.4}.micPanel.good{box-shadow:inset 0 0 0 2px rgba(45,145,75,.35)}.micPanel.bad{box-shadow:inset 0 0 0 2px rgba(190,65,65,.25)}
+@media(max-width:600px){.micTop{align-items:flex-start}.micReadout{grid-template-columns:1fr 1fr}.micReadout div:last-child{grid-column:1/-1}}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#171717">
@@ -68,6 +78,16 @@ header{display:flex;justify-content:space-between;align-items:end;margin-bottom:
 </div>
 <div class="transport"><button id="play" class="play">▶ PLAY ALONG</button><button id="stop" class="stop">STOP</button></div>
 <div class="status"><span id="status">Bereit</span><span id="clock">0:00</span></div>
+<div class="micPanel" id="micPanel">
+  <div class="micTop"><div><div class="adaptiveTag">MIKROFON · SPIELERKENNUNG</div><b id="micHeadline">Noch nicht aktiviert</b></div><button id="micToggle" class="stop">Mikrofon aktivieren</button></div>
+  <div class="micReadout">
+    <div><span>Du spielst</span><b id="micNote">–</b><small id="micCents">–</small></div>
+    <div><span>Erwartet</span><b id="micTarget">–</b><small id="micTiming">–</small></div>
+    <div><span>Treffer</span><b id="micScore">–</b><small id="micHits">0 / 0</small></div>
+  </div>
+  <div class="micMeter"><i id="micMeterFill"></i></div>
+  <div class="micHint" id="micHint">Für automatische Bewertung Mikrofon erlauben. Mit Kopfhörern ist die Erkennung am zuverlässigsten.</div>
+</div>
 <div class="metro" id="metro"><i></i><i></i><i></i><i></i></div>
 <div class="scorewrap"><div class="playhead"></div><div class="scoreScroller" id="scroller"><svg id="score" viewBox="0 0 1200 560" preserveAspectRatio="xMinYMin meet"></svg></div></div>
 <div class="legend"><span>𝅘𝅥 Viertel</span><span>♫ Achtel</span><span>𝅗𝅥 Halbe</span><span>𝄽 Pause</span><span><b>1</b> Zeige</span><span><b>2</b> Mittel</span><span><b>3</b> Ring</span><span><b>4</b> Kleiner Finger</span><span>Noten und TAB teilen dieselbe Zeitachse</span></div>
@@ -616,7 +636,7 @@ function coachPlan(){
  const fam=FAMILIES.find(f=>f.id===mainFamily)||FAMILIES[0];
  const mode=seededChoice(fam.modes,seed+8);
  const warm=seededChoice(['technique','scales','rhythm'],seed);
- const tempo=mainFamily==='rhythm'?72:66;
+ let tempo=mainFamily==='rhythm'?72:66;tempo=adaptiveTempo({family:mainFamily,key,mode,tempo});
  const application=seed%2?'song':'ear';
  return [
    {family:warm,key,scale,mode:FAMILIES.find(f=>f.id===warm)?.modes?.[0]||'Normal',tempo:56,label:'Warm-up',minutes:4},
@@ -704,6 +724,11 @@ const LEARN_PATHS={
  ]}
 };
 let learnOpen=null;
+
+function lessonCopy(step){const map={'Tonleiter verstehen':['Was du lernst','Eine Tonleiter ist geordnetes Tonmaterial rund um einen Grundton. Höre den Grundton als Zuhause – nicht nur Bundnummern.'],'Intervalle erkennen':['Verbindung','Jeder Ton hat eine Funktion relativ zum Grundton. 1–3–5 ist eine Auswahl aus derselben Scale und bildet die Triad.'],'1–3–5 herausziehen':['Aus Scale wird Akkord','Nimm den 1., 3. und 5. Ton: gleichzeitig entsteht die Triad, nacheinander das Arpeggio.'],'Puls fühlen':['Erst hören, dann spielen','Viertel liegen auf den Beats; Achtel teilen jeden Beat in zwei, Sechzehntel in vier Teile.'],'Grundton':['Hören lernen','Der Grundton ist der klangliche Ruhepunkt. Höre ihn und finde ihn anschließend auf der Gitarre.'],'CAGED':['Verknüpfen','CAGED verbindet Akkordformen mit Triads, Akkordtönen und Scale-Bereichen auf dem Hals.']};return map[step[1]]||['Kurz erklärt',step[2]+' Danach führt PLAY. direkt in die passende praktische Aufgabe.']}
+function openLesson(pathId,i){const p=LEARN_PATHS[pathId],s=p.steps[i],c=lessonCopy(s),modal=document.createElement('div');modal.className='sessionSummary';modal.innerHTML=`<div><div class="adaptiveTag">${p.title} · SCHRITT ${s[0]}</div><h2>${s[1]}</h2><div class="learnBox"><b>${c[0]}</b><p>${c[1]}</p></div><div class="teacherCue"><b>Danach</b><span>${s[2]}</span></div><button class="coachStart" data-go>▶ Jetzt ausprobieren</button><button class="adjustToggle" data-close>Zurück</button></div>`;document.body.appendChild(modal);modal.querySelector('[data-close]').onclick=()=>modal.remove();modal.querySelector('[data-go]').onclick=()=>{modal.remove();startLearnStep(pathId,i)}}
+function startLearnStep(pathId,i){const s=LEARN_PATHS[pathId].steps[i],target=s[3];if(target==='song'){const song=EX.find(x=>(x.type||'exercise')==='song');if(song){current=EX.indexOf(song);currentLibrary='song';render()}return}if(target==='ear'){playTone(60+scalePcs(prefs.key,prefs.scale)[0],audio().currentTime+.05,.7);return}prefs.family=target;prefs.mode=(FAMILIES.find(f=>f.id===target)?.modes||['Normal'])[0];saveStructured();currentLibrary='practice';render()}
+
 function renderLearnHub(){
  const hub=document.getElementById('practiceHub');
  if(!learnOpen){
@@ -715,13 +740,7 @@ function renderLearnHub(){
  hub.innerHTML=`<div class="familyPanel"><div class="familyTop"><button class="secondary" data-back>← Lernpfade</button><div><b>${p.title}</b><div class="small">${p.intro}</div></div></div>
  <div class="learnGrid">${p.steps.map((s,i)=>`<button class="learnCard" data-step="${i}"><span class="adaptiveTag">SCHRITT ${s[0]}</span><b>${s[1]}</b><div class="small">${s[2]}</div><div class="small" style="margin-top:6px">▶ Jetzt machen</div></button>`).join('')}</div></div>`;
  hub.querySelector('[data-back]').onclick=()=>{learnOpen=null;renderLearnHub()};
- hub.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{
-   const s=p.steps[+b.dataset.step],target=s[3];
-   if(target==='song'){const song=EX.find(x=>(x.type||'exercise')==='song');if(song){current=EX.indexOf(song);currentLibrary='song';render()}return}
-   if(target==='ear'){const pc=scalePcs(prefs.key,prefs.scale)[0];playTone(60+pc,audio().currentTime+.05,.7);return}
-   prefs.family=target;prefs.mode=(FAMILIES.find(f=>f.id===target)?.modes||['Normal'])[0];saveStructured();currentLibrary='practice';renderPracticeHub();
-   setTimeout(()=>document.querySelector('[data-adjust]')?.click(),0);
- });
+ hub.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>openLesson(learnOpen,+b.dataset.step));
 }
 
 let current=0,currentLibrary='practice',ctx=null,run=null,raf=0,nodes=[];
@@ -731,6 +750,122 @@ const stringMidi=[64,59,55,50,45,40]; // e B G D A E
 function audio(){if(!ctx)ctx=new (window.AudioContext||window.webkitAudioContext)();return ctx}
 function freq(m){return 440*Math.pow(2,(m-69)/12)}
 function playTone(m,t,d){if(m==null)return;const c=audio(),o=c.createOscillator(),g=c.createGain();o.type='triangle';o.frequency.value=freq(m);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.08,t+.006);g.gain.exponentialRampToValueAtTime(.0001,t+Math.max(.05,d*.88));o.connect(g).connect(c.destination);o.start(t);o.stop(t+d);nodes.push(o,g)}
+
+let micState={
+ enabled:false,stream:null,source:null,analyser:null,buf:null,timer:null,
+ midi:null,cents:null,rms:0,stableMidi:null,stableFrames:0,
+ expected:null,runHits:new Set(),runExpected:new Set(),lastRunResult:null,
+ eventSeenAt:{}
+};
+const NOTE_NAMES_SHARP=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+function midiName(m){if(m==null||!Number.isFinite(m))return '–';const n=Math.round(m);return NOTE_NAMES_SHARP[(n%12+12)%12]+(Math.floor(n/12)-1)}
+function hzToMidi(hz){return 69+12*Math.log2(hz/440)}
+function centsFromMidi(m){return (m-Math.round(m))*100}
+function singleNoteEvent(ev){
+ const tab=ev?.[1]||[];let count=0;
+ for(const v of tab)if(v!==null&&v!==undefined&&v!=='R'&&v!=='x')count++;
+ return count===1&&Number.isFinite(ev?.[2]);
+}
+function micScorableExercise(ex){return !!ex?.events?.length && ex.events.filter(ev=>ev?.[1]?.[0]!=='R').every(singleNoteEvent)}
+function autoCorrelatePitch(data,sampleRate){
+ let rms=0;for(let i=0;i<data.length;i++)rms+=data[i]*data[i];rms=Math.sqrt(rms/data.length);micState.rms=rms;
+ if(rms<0.008)return null;
+ const minLag=Math.floor(sampleRate/1200),maxLag=Math.min(Math.floor(sampleRate/70),data.length-2);
+ let bestLag=-1,best=-1;
+ for(let lag=minLag;lag<=maxLag;lag++){
+   let sum=0,a=0,b=0;
+   for(let i=0;i<data.length-lag;i++){const x=data[i],y=data[i+lag];sum+=x*y;a+=x*x;b+=y*y}
+   const corr=sum/Math.sqrt((a*b)||1);
+   if(corr>best){best=corr;bestLag=lag}
+ }
+ if(bestLag<0||best<0.72)return null;
+ // parabolic refinement around correlation peak
+ function corrAt(lag){let sum=0,a=0,b=0;for(let i=0;i<data.length-lag;i++){const x=data[i],y=data[i+lag];sum+=x*y;a+=x*x;b+=y*y}return sum/Math.sqrt((a*b)||1)}
+ let lag=bestLag;
+ if(bestLag>minLag&&bestLag<maxLag){const c1=corrAt(bestLag-1),c2=best,c3=corrAt(bestLag+1),den=(c1-2*c2+c3);if(Math.abs(den)>1e-6)lag=bestLag+.5*(c1-c3)/den}
+ return sampleRate/lag;
+}
+function updateMicUI(){
+ const panel=document.getElementById('micPanel');if(!panel)return;
+ document.getElementById('micNote').textContent=micState.stableMidi!=null?midiName(micState.stableMidi):'–';
+ document.getElementById('micCents').textContent=micState.cents!=null?`${micState.cents>0?'+':''}${Math.round(micState.cents)} cent`:'–';
+ document.getElementById('micMeterFill').style.width=Math.min(100,micState.rms*900)+'%';
+ const target=micState.expected?.midi;
+ document.getElementById('micTarget').textContent=target!=null?midiName(target):'–';
+ document.getElementById('micTiming').textContent=micState.expected?.label||'–';
+ const expected=micState.runExpected.size,hits=micState.runHits.size;
+ document.getElementById('micHits').textContent=`${hits} / ${expected}`;
+ document.getElementById('micScore').textContent=expected?`${Math.round(hits/expected*100)}%`:'–';
+ panel.classList.remove('good','bad');
+ if(micState.expected?.hit)panel.classList.add('good');
+ else if(micState.expected&&micState.stableMidi!=null)panel.classList.add('bad');
+}
+function processMicFrame(){
+ if(!micState.enabled||!micState.analyser)return;
+ micState.analyser.getFloatTimeDomainData(micState.buf);
+ const hz=autoCorrelatePitch(micState.buf,audio().sampleRate);
+ if(hz){
+   const m=hzToMidi(hz),rounded=Math.round(m);
+   micState.midi=m;micState.cents=centsFromMidi(m);
+   if(micState.stableMidi===rounded && Math.abs(micState.cents)<45)micState.stableFrames++;
+   else{micState.stableMidi=rounded;micState.stableFrames=1}
+ }else{micState.midi=null;micState.cents=null;micState.stableMidi=null;micState.stableFrames=0}
+ scoreMicExpected();
+ updateMicUI();
+}
+function scoreMicExpected(){
+ const e=micState.expected;
+ if(!e||e.midi==null||e.hit||micState.stableFrames<2||micState.stableMidi==null)return;
+ const now=audio().currentTime;
+ if(now<e.openAt||now>e.closeAt)return;
+ const semitoneError=Math.abs(micState.midi-e.midi);
+ if(semitoneError<=0.48){
+   e.hit=true;micState.runHits.add(e.index);
+   micState.eventSeenAt[e.index]=now;
+ }
+}
+async function enableMic(){
+ if(micState.enabled){disableMic();return}
+ const hint=document.getElementById('micHint'),btn=document.getElementById('micToggle');
+ if(!navigator.mediaDevices?.getUserMedia){hint.textContent='Mikrofon ist hier nicht verfügbar. Öffne die PWA über HTTPS bzw. vom Home-Bildschirm.';return}
+ try{
+   const c=audio();await c.resume?.();
+   const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
+   const source=c.createMediaStreamSource(stream),analyser=c.createAnalyser();analyser.fftSize=4096;analyser.smoothingTimeConstant=0;
+   source.connect(analyser);
+   micState.stream=stream;micState.source=source;micState.analyser=analyser;micState.buf=new Float32Array(analyser.fftSize);micState.enabled=true;
+   guideSel.value='off'; // avoid the app hearing its own guide tone
+   btn.textContent='Mikrofon ausschalten';document.getElementById('micHeadline').textContent='Hört mit';
+   hint.textContent='Automatische Bewertung für eindeutige Einzelnoten aktiv. Guide-Ton wurde ausgeschaltet. Kopfhörer verbessern die Erkennung.';
+   clearInterval(micState.timer);micState.timer=setInterval(processMicFrame,35);
+ }catch(err){hint.textContent='Mikrofon konnte nicht aktiviert werden: '+(err?.message||err);btn.textContent='Mikrofon aktivieren'}
+}
+function disableMic(){
+ clearInterval(micState.timer);micState.timer=null;
+ micState.stream?.getTracks?.().forEach(t=>t.stop());try{micState.source?.disconnect()}catch{}
+ micState.enabled=false;micState.stream=null;micState.source=null;micState.analyser=null;micState.buf=null;micState.expected=null;
+ const btn=document.getElementById('micToggle');if(btn)btn.textContent='Mikrofon aktivieren';
+ const head=document.getElementById('micHeadline');if(head)head.textContent='Noch nicht aktiviert';
+ updateMicUI();
+}
+function resetMicRun(ex){
+ micState.runHits=new Set();micState.runExpected=new Set();micState.eventSeenAt={};micState.lastRunResult=null;micState.expected=null;
+ if(micState.enabled&&micScorableExercise(ex)){
+   ex.events.forEach((ev,i)=>{if(singleNoteEvent(ev))micState.runExpected.add(i)});
+   document.getElementById('micHint').textContent='PLAY. bewertet Tonhöhe und Timing dieses Durchgangs automatisch.';
+ }else if(micState.enabled){
+   document.getElementById('micHint').textContent='Diese Übung enthält Akkorde/mehrere gleichzeitige Töne. Mikrofon zeigt live den Ton, bewertet den Durchgang aber nicht automatisch.';
+ }
+ updateMicUI();
+}
+function finishMicRun(){
+ const total=micState.runExpected.size,hits=micState.runHits.size;
+ const score=total?hits/total:null;
+ micState.lastRunResult={hits,total,score,passed:score!=null&&score>=0.82};
+ micState.expected=null;updateMicUI();
+ return micState.lastRunResult;
+}
+
 function click(t,accent){const c=audio(),o=c.createOscillator(),g=c.createGain();o.frequency.value=accent?1300:820;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(accent?.12:.07,t+.002);g.gain.exponentialRampToValueAtTime(.0001,t+.04);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.05);nodes.push(o,g)}
 function stopAll(){if(run)run.alive=false;run=null;cancelAnimationFrame(raf);raf=0;nodes.forEach(n=>{try{n.stop?.()}catch{}try{n.disconnect?.()}catch{}});nodes=[];beats.forEach(x=>x.classList.remove('on'));statusEl.textContent='Gestoppt';document.getElementById('play').textContent='▶ PLAY ALONG';scroller.scrollLeft=0}
 function musicText(ex){if((ex.type||'exercise')==='song')return 'Spiele nicht nur einzelne Töne: höre Form, Wiederholung, Phrasenende und die Stellen, an denen die Melodie Spannung oder Ruhe erzeugt.';if(ex.id==='ex4')return 'Du lernst Begleitung: Akkorde auf Zählzeit 1 wechseln und den Puls durchlaufen lassen.';if(ex.id==='ex5')return 'Blues funktioniert durch Frage, Antwort und Raum. Die Pause ist hier genauso wichtig wie die Note.';if(ex.id==='ex6')return 'Ein Arpeggio zeigt dir die Töne eines Akkords nacheinander. Höre, dass sie zusammen eine Harmonie bilden.';if(ex.id==='ex1')return 'Die A-Moll-Pentatonik wird zu Musik, wenn du nicht nur das Muster spielst, sondern Phrasen bildest und auf A landest.';return 'Timing und Klang sind wichtiger als Geschwindigkeit. Jede Note soll klar im Puls sitzen.'}
@@ -801,6 +936,18 @@ function renderScore(){
 }
 
 
+
+let teacherStats={sessions:0,totalActiveSec:0,skills:{},lastSession:null};
+try{teacherStats=Object.assign(teacherStats,JSON.parse(localStorage.getItem('play_teacher_v5')||'{}'))}catch{}
+function saveTeacher(){try{localStorage.setItem('play_teacher_v5',JSON.stringify(teacherStats))}catch{}}
+function skillKey(item){return `${item.family}|${item.key}|${item.mode||''}`}
+function skillStat(item){const k=skillKey(item);return teacherStats.skills[k]||(teacherStats.skills[k]={attempts:0,success:0,hard:0,bestTempo:0,last:0})}
+function targetRuns(item){return item.label==='Warm-up'?2:item.label==='Hauptübung'?3:1}
+function teacherInstruction(item){if(item.label==='Warm-up')return `Spiele ${targetRuns(item)} lockere vollständige Durchgänge.`;if(item.family==='rhythm')return `Halte den Puls über ${targetRuns(item)} vollständige Durchgänge.`;return `Spiele ${targetRuns(item)} saubere vollständige Durchgänge bei ${item.tempo} BPM.`}
+function adaptiveTempo(item){const s=skillStat(item);return s.bestTempo?Math.max(40,Math.min(140,s.bestTempo+(s.success>=2?4:0))):item.tempo}
+function recordStep(){if(!activeCoachStep)return;const s=skillStat(activeCoachStep.item);s.attempts++;s.success++;s.last=Date.now();s.bestTempo=Math.max(s.bestTempo,activeCoachStep.item.tempo||0);if(micState.lastRunResult)s.lastMic=Math.round((micState.lastRunResult.score||0)*100);saveTeacher()}
+function teacherDecision(item){const s=skillStat(item);return s.hard>s.success?'Das bleibt häufiger in Wiederholung.':s.success>=2?'Das sitzt zunehmend – PLAY. steigert beim nächsten Mal leicht.':'PLAY. hält die Schwierigkeit zunächst stabil.'}
+
 let activeCoachStep=null;
 let coachPlanState=null;
 try{coachPlanState=JSON.parse(localStorage.getItem('play_coach_active')||'null')}catch{}
@@ -818,7 +965,7 @@ function launchCoachIndex(i){
  if(!coachPlanState||!coachPlanState.plan?.[i])return finishCoachSession();
  coachPlanState.index=i;try{localStorage.setItem('play_coach_active',JSON.stringify(coachPlanState))}catch{}
  const item=coachPlanState.plan[i];
- activeCoachStep={item,index:i,targetSec:item.minutes*60,startedAt:null,runs:0,finished:false};
+ activeCoachStep={item,index:i,targetSec:item.minutes*60,startedAt:null,runs:0,targetRuns:targetRuns(item),finished:false};
  applyCoachItem(item);
 }
 
@@ -839,22 +986,19 @@ function paintCoachStep(){
  document.body.classList.add('coachLocked');
  const item=activeCoachStep.item, elapsed=coachElapsed(), p=Math.min(100,elapsed/activeCoachStep.targetSec*100);
  box.className='coachStepBanner on';
- box.innerHTML=`<div class="top"><b>Jetzt ${activeCoachStep.index+1}/${coachPlanState?.plan?.length||3}: ${item.label}</b><button id="coachAbort" style="border:0;background:transparent;font-size:10px;text-decoration:underline">Session abbrechen</button><span>${Math.floor(elapsed/60)}:${String(Math.floor(elapsed%60)).padStart(2,'0')} / ${item.minutes}:00</span></div><div class="rule">${coachRule(item)}</div><div class="progressbar"><i style="width:${p}%"></i></div><span>${item.tempo} BPM · ${KEYS.find(k=>k[0]===item.key)?.[1]||item.key} · ${item.mode||''} · Durchgänge: ${activeCoachStep.runs}</span>`;
+ box.innerHTML=`<div class="top"><b>Jetzt ${activeCoachStep.index+1}/${coachPlanState?.plan?.length||3}: ${item.label}</b><button id="coachAbort" style="border:0;background:transparent;font-size:10px;text-decoration:underline">Session abbrechen</button><span>${Math.floor(elapsed/60)}:${String(Math.floor(elapsed%60)).padStart(2,'0')} / ${item.minutes}:00</span></div><div class="rule">${coachRule(item)}</div><div class="progressbar"><i style="width:${p}%"></i></div><span>${item.tempo} BPM · ${KEYS.find(k=>k[0]===item.key)?.[1]||item.key} · ${item.mode||''} · Durchgänge: ${activeCoachStep.runs}/${activeCoachStep.targetRuns}</span><div class="teacherCue"><b>Dein Auftrag</b><span>${teacherInstruction(item)}</span></div>`;
  const abortBtn=document.getElementById('coachAbort');if(abortBtn)abortBtn.onclick=abortCoachSession;
 }
 function finishCoachStep(){
  if(!activeCoachStep||activeCoachStep.finished)return;
- activeCoachStep.finished=true;stopAll();
+ activeCoachStep.finished=true;recordStep();stopAll();
  paintCoachStep();
  const box=document.getElementById('coachStepBanner');
  const isLast=(activeCoachStep.index+1)>=(coachPlanState?.plan?.length||0);
  box.insertAdjacentHTML('beforeend',`<div class="coachDone"><b>${activeCoachStep.item.label} geschafft.</b><span>${activeCoachStep.runs} vollständige Durchgänge · ${Math.round(coachElapsed())} Sek. aktive Schrittzeit</span><button id="coachContinue">${isLast?'Session abschließen':'Weiter zum nächsten Schritt'}</button></div>`);
  document.getElementById('coachContinue').onclick=()=>{if(isLast)finishCoachSession();else launchCoachIndex(activeCoachStep.index+1)};
 }
-function finishCoachSession(){
- activeCoachStep=null;coachPlanState=null;try{localStorage.removeItem('play_coach_active')}catch{}
- document.body.classList.remove('coachLocked');currentLibrary='practice';render();
-}
+function finishCoachSession(){const plan=coachPlanState?.plan||[];teacherStats.sessions++;teacherStats.lastSession={date:new Date().toISOString(),steps:plan};saveTeacher();activeCoachStep=null;coachPlanState=null;try{localStorage.removeItem('play_coach_active')}catch{}document.body.classList.remove('coachLocked');currentLibrary='practice';render();const modal=document.createElement('div');modal.className='sessionSummary';modal.innerHTML=`<div><div class="adaptiveTag">SESSION ABGESCHLOSSEN</div><h2>Session geschafft.</h2><div class="summaryStats"><div><b>${plan.length}</b><span>Schritte</span></div><div><b>${teacherStats.sessions}</b><span>Sessions gesamt</span></div><div><b>${Object.keys(teacherStats.skills).length}</b><span>gelernte Kombinationen</span></div></div><div class="summaryNext"><b>Nächstes Mal</b><p class="small">PLAY. nutzt deine bisherigen Erfolge und Tempi für die nächste Empfehlung. Erfolgreiches wird leicht gesteigert; Schwieriges bleibt häufiger in Wiederholung.</p></div><button class="coachStart" data-close>Fertig</button></div>`;document.body.appendChild(modal);modal.querySelector('[data-close]').onclick=()=>modal.remove()}
 function abortCoachSession(){
  stopAll();activeCoachStep=null;coachPlanState=null;try{localStorage.removeItem('play_coach_active')}catch{}
  document.body.classList.remove('coachLocked');currentLibrary='practice';render();
@@ -882,6 +1026,7 @@ function render(){
  paintCoachStep();
  list.querySelectorAll('button').forEach(b=>b.onclick=()=>{stopAll();current=+b.dataset.i;render()});
  renderScore();
+ const ex=EX[current];if(micState.enabled){document.getElementById('micHint').textContent=micScorableExercise(ex)?'Bereit für automatische Ton- und Timing-Erkennung.':'Live-Tonerkennung aktiv; Akkorde werden noch nicht automatisch bewertet.'}
 }
 function start(){
  stopAll();
@@ -893,6 +1038,7 @@ function start(){
  const total=eventStart[eventStart.length-1];
  const token={alive:true};run=token;
  const countStart=c.currentTime+.12,playAt=countStart+countDur;
+ resetMicRun(ex);
 
  // schedule all audio from the same absolute timeline
  for(let t=countStart,i=0;t<playAt+total-.0001;t+=beat,i++)click(t,i%4===0);
@@ -915,18 +1061,26 @@ function start(){
    }
    const elapsed=now-playAt;
    if(elapsed>=total){
+     const micResult=micState.enabled&&micScorableExercise(ex)?finishMicRun():null;
      if(activeCoachStep&&!activeCoachStep.finished){
-       activeCoachStep.runs++;
-       const reached=coachElapsed()>=activeCoachStep.targetSec;
+       const cleanRun=!micResult || micResult.passed;
+       if(cleanRun)activeCoachStep.runs++;
+       const reached=activeCoachStep.runs>=activeCoachStep.targetRuns || coachElapsed()>=activeCoachStep.targetSec;
        stopAll();
        if(reached){statusEl.textContent='Schritt geschafft';finishCoachStep();return}
-       statusEl.textContent='Nächster Durchgang…';paintCoachStep();setTimeout(()=>{if(activeCoachStep&&!activeCoachStep.finished)start()},350);return
+       statusEl.textContent=micResult&&!micResult.passed?`Noch einmal · ${Math.round(micResult.score*100)}% Treffer`:'Nächster Durchgang…';paintCoachStep();setTimeout(()=>{if(activeCoachStep&&!activeCoachStep.finished)start()},350);return
      }
-     stopAll();statusEl.textContent='Fertig';return
+     stopAll();statusEl.textContent=micResult?`Fertig · ${Math.round(micResult.score*100)}% erkannt`:'Fertig';return
    }
 
    let i=0;
    while(i<durations.length-1 && elapsed>=eventStart[i+1])i++;
+   if(micState.enabled&&micScorableExercise(ex)&&singleNoteEvent(ex.events[i])){
+     const evStart=playAt+eventStart[i],evEnd=evStart+durations[i];
+     const margin=Math.min(.08,durations[i]*.18);
+     const prevHit=micState.runHits.has(i);
+     micState.expected={index:i,midi:ex.events[i][2],openAt:evStart-margin,closeAt:evEnd+margin,label:`${durName(ex.events[i][0])||'Note'} · im Zeitfenster`,hit:prevHit};
+   }else if(micState.enabled){micState.expected=null}
    const local=(elapsed-eventStart[i])/durations[i];
    const beatPos=(eventStart[i]/beat)+(durations[i]/beat)*local;
    const px=left+beatPos*beatWidth;
@@ -943,7 +1097,8 @@ function start(){
 }
 document.getElementById('play').onclick=()=>run?stopAll():start();
 document.getElementById('stop').onclick=()=>{if(activeCoachStep){pauseCoachClock();stopAll();statusEl.textContent='Pausiert · PLAY zum Fortsetzen'}else stopAll()};bpmSel.onchange=()=>{if(run)start()};countSel.onchange=()=>{if(run)start()};guideSel.onchange=()=>{if(run)start()};fingeringSel.onchange=()=>{renderScore()};
-document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAll()});
+document.getElementById('micToggle')?.addEventListener('click',enableMic);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){stopAll();if(micState.enabled)disableMic()}});
 document.querySelectorAll('[data-library]').forEach(b=>b.onclick=()=>{if(coachPlanState)return;stopAll();currentLibrary=b.dataset.library;render()});
 if(coachPlanState?.plan?.length){launchCoachIndex(coachPlanState.index||0)}else render();
 
