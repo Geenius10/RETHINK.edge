@@ -53,6 +53,15 @@ header{display:flex;justify-content:space-between;align-items:end;margin-bottom:
 .micMeter{height:6px;background:#e3ded7;border-radius:99px;overflow:hidden}.micMeter i{display:block;height:100%;width:0;background:var(--accent);transition:width .08s linear}
 .micHint{font-size:10px;color:var(--muted);line-height:1.4}.micPanel.good{box-shadow:inset 0 0 0 2px rgba(45,145,75,.35)}.micPanel.bad{box-shadow:inset 0 0 0 2px rgba(190,65,65,.25)}
 @media(max-width:600px){.micTop{align-items:flex-start}.micReadout{grid-template-columns:1fr 1fr}.micReadout div:last-child{grid-column:1/-1}}
+
+.toolsGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.toolCard{border:1px solid var(--line);border-radius:16px;background:#fff;padding:14px;text-align:left;display:grid;gap:6px}.toolCard b{font-size:15px}.toolCard p{font-size:11px;color:var(--muted);margin:0}
+.tunerPanel{display:grid;gap:14px}.tunerNote{font-size:72px;font-weight:950;letter-spacing:-4px;text-align:center}.tunerCents{text-align:center;font-size:14px;color:var(--muted)}
+.tunerNeedle{position:relative;height:70px;border:1px solid var(--line);border-radius:14px;background:#fbfaf8}.tunerNeedle:before{content:"";position:absolute;left:50%;top:8px;bottom:8px;width:2px;background:var(--ink)}
+.tunerNeedle i{position:absolute;left:50%;top:12px;width:4px;height:46px;background:var(--accent);transform-origin:50% 100%;border-radius:4px}
+.tunerStrings{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.tunerStrings button{min-height:44px;border:1px solid var(--line);border-radius:10px;background:#fff}.tunerStrings button.active{background:var(--ink);color:#fff}
+.tunerStatus{text-align:center;font-size:12px}
+@media(max-width:620px){.toolsGrid{grid-template-columns:1fr}.librarySwitch{grid-template-columns:repeat(2,1fr)}.tunerNote{font-size:58px}}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#171717">
@@ -65,7 +74,7 @@ header{display:flex;justify-content:space-between;align-items:end;margin-bottom:
 <main class="app">
 <header><div><div class="brand">PLAY.</div><div class="sub">40 Übungen · 10 Songs · Noten + TAB + Timing</div></div><div class="sub">Noten + TAB + Timing</div></header>
 <section class="card">
-<div class="librarySwitch"><button class="active" data-library="practice">Practice</button><button data-library="learn">Lernen</button><button data-library="song">Songs</button></div>
+<div class="librarySwitch"><button class="active" data-library="practice">Practice</button><button data-library="learn">Lernen</button><button data-library="song">Songs</button><button data-library="tools">Tools</button></div>
 <div id="practiceHub"></div><div class="exercise-list" id="exerciseList"></div>
 </section>
 <section class="card">
@@ -727,7 +736,7 @@ let learnOpen=null;
 
 function lessonCopy(step){const map={'Tonleiter verstehen':['Was du lernst','Eine Tonleiter ist geordnetes Tonmaterial rund um einen Grundton. Höre den Grundton als Zuhause – nicht nur Bundnummern.'],'Intervalle erkennen':['Verbindung','Jeder Ton hat eine Funktion relativ zum Grundton. 1–3–5 ist eine Auswahl aus derselben Scale und bildet die Triad.'],'1–3–5 herausziehen':['Aus Scale wird Akkord','Nimm den 1., 3. und 5. Ton: gleichzeitig entsteht die Triad, nacheinander das Arpeggio.'],'Puls fühlen':['Erst hören, dann spielen','Viertel liegen auf den Beats; Achtel teilen jeden Beat in zwei, Sechzehntel in vier Teile.'],'Grundton':['Hören lernen','Der Grundton ist der klangliche Ruhepunkt. Höre ihn und finde ihn anschließend auf der Gitarre.'],'CAGED':['Verknüpfen','CAGED verbindet Akkordformen mit Triads, Akkordtönen und Scale-Bereichen auf dem Hals.']};return map[step[1]]||['Kurz erklärt',step[2]+' Danach führt PLAY. direkt in die passende praktische Aufgabe.']}
 function openLesson(pathId,i){const p=LEARN_PATHS[pathId],s=p.steps[i],c=lessonCopy(s),modal=document.createElement('div');modal.className='sessionSummary';modal.innerHTML=`<div><div class="adaptiveTag">${p.title} · SCHRITT ${s[0]}</div><h2>${s[1]}</h2><div class="learnBox"><b>${c[0]}</b><p>${c[1]}</p></div><div class="teacherCue"><b>Danach</b><span>${s[2]}</span></div><button class="coachStart" data-go>▶ Jetzt ausprobieren</button><button class="adjustToggle" data-close>Zurück</button></div>`;document.body.appendChild(modal);modal.querySelector('[data-close]').onclick=()=>modal.remove();modal.querySelector('[data-go]').onclick=()=>{modal.remove();startLearnStep(pathId,i)}}
-function startLearnStep(pathId,i){const s=LEARN_PATHS[pathId].steps[i],target=s[3];if(target==='song'){const song=EX.find(x=>(x.type||'exercise')==='song');if(song){current=EX.indexOf(song);currentLibrary='song';render()}return}if(target==='ear'){playTone(60+scalePcs(prefs.key,prefs.scale)[0],audio().currentTime+.05,.7);return}prefs.family=target;prefs.mode=(FAMILIES.find(f=>f.id===target)?.modes||['Normal'])[0];saveStructured();currentLibrary='practice';render()}
+function startLearnStep(pathId,i){const s=LEARN_PATHS[pathId].steps[i],target=s[3];if(target==='song'){const song=EX.find(x=>(x.type||'exercise')==='song');if(song){window.__returnToLearn=learnOpen;current=EX.indexOf(song);currentLibrary='song';render()}return}if(target==='ear'){playTone(60+scalePcs(prefs.key,prefs.scale)[0],audio().currentTime+.05,.7);return}prefs.family=target;prefs.mode=(FAMILIES.find(f=>f.id===target)?.modes||['Normal'])[0];saveStructured();const ex=findFamilyExercise(target);if(ex){if(ex.id==='generated-structured'){const old=EX.findIndex(x=>x.id===ex.id);if(old>=0)EX.splice(old,1);EX.unshift(ex);current=0}else current=EX.indexOf(ex);window.__returnToLearn=learnOpen;currentLibrary='exercise';render()}}
 
 function renderLearnHub(){
  const hub=document.getElementById('practiceHub');
@@ -811,7 +820,7 @@ function processMicFrame(){
    else{micState.stableMidi=rounded;micState.stableFrames=1}
  }else{micState.midi=null;micState.cents=null;micState.stableMidi=null;micState.stableFrames=0}
  scoreMicExpected();
- updateMicUI();
+ updateMicUI();updateTunerUI();
 }
 function scoreMicExpected(){
  const e=micState.expected;
@@ -1007,16 +1016,82 @@ function abortCoachSession(){
 function pendingCoach(){return []}
 function takeNextCoach(){}
 
+
+let toolsOpen=null;
+let tunerState={active:false,target:null};
+
+const TUNER_TARGETS=[
+ {name:'E2',midi:40,label:'E'},{name:'A2',midi:45,label:'A'},{name:'D3',midi:50,label:'D'},
+ {name:'G3',midi:55,label:'G'},{name:'B3',midi:59,label:'B'},{name:'E4',midi:64,label:'e'}
+];
+
+function renderToolsHub(){
+ const hub=document.getElementById('practiceHub');hub.style.display='grid';list.style.display='none';
+ if(!toolsOpen){
+   hub.innerHTML=`<div class="toolsGrid">
+    <button class="toolCard" data-tool="tuner"><b>Tuner</b><p>Chromatische Live-Stimmung mit Saiten-Zielen E A D G B e.</p></button>
+    <button class="toolCard" data-tool="mic"><b>Mikrofon-Test</b><p>Prüfen, ob PLAY. dein Signal sauber erkennt.</p></button>
+    <button class="toolCard" data-tool="backup"><b>Backup</b><p>Lernfortschritt, Coach-Daten und Einstellungen sichern.</p></button>
+    <button class="toolCard" data-tool="about"><b>App-Status</b><p>PWA, Offline-Funktion und Erkennungsfunktionen.</p></button>
+   </div>`;
+   hub.querySelectorAll('[data-tool]').forEach(b=>b.onclick=()=>{toolsOpen=b.dataset.tool;renderToolsHub()});
+   return;
+ }
+ if(toolsOpen==='tuner')return renderTuner(hub);
+ if(toolsOpen==='mic'){
+   hub.innerHTML=`<div class="familyPanel"><div class="familyTop"><button class="secondary" data-back>← Tools</button><b>Mikrofon-Test</b></div><div class="teacherCue"><b>Status</b><span>${micState.enabled?'Mikrofon aktiv.':'Noch nicht aktiv.'}</span></div><button class="coachStart" data-mic>${micState.enabled?'Mikrofon ausschalten':'Mikrofon aktivieren'}</button></div>`;
+   hub.querySelector('[data-back]').onclick=()=>{toolsOpen=null;renderToolsHub()};
+   hub.querySelector('[data-mic]').onclick=async()=>{await enableMic();renderToolsHub()};
+   return;
+ }
+ if(toolsOpen==='backup'){
+   hub.innerHTML=`<div class="familyPanel"><div class="familyTop"><button class="secondary" data-back>← Tools</button><b>Backup</b></div><div class="teacherCue"><b>Daten sichern</b><span>Lernfortschritt, Coach, Tonartenstatistik und Einstellungen.</span></div><button class="coachStart" data-export>Backup erstellen</button><label class="secondary" style="display:grid;place-items:center;min-height:46px">Backup wiederherstellen<input data-import type="file" accept=".json,application/json" hidden></label></div>`;
+   hub.querySelector('[data-back]').onclick=()=>{toolsOpen=null;renderToolsHub()};
+   hub.querySelector('[data-export]').onclick=exportBackup;
+   hub.querySelector('[data-import]').onchange=e=>{const f=e.target.files?.[0];if(f)importBackup(f)};
+   return;
+ }
+ hub.innerHTML=`<div class="familyPanel"><div class="familyTop"><button class="secondary" data-back>← Tools</button><b>App-Status</b></div><div class="teacherCue"><b>PLAY.</b><span>PWA · Offline · Backup · Coach · Lernen · Songs · Mikrofon-Erkennung · Tuner.</span></div></div>`;
+ hub.querySelector('[data-back]').onclick=()=>{toolsOpen=null;renderToolsHub()};
+}
+function renderTuner(hub){
+ hub.innerHTML=`<div class="familyPanel tunerPanel"><div class="familyTop"><button class="secondary" data-back>← Tools</button><b>Tuner</b></div>
+ <div class="tunerStrings">${TUNER_TARGETS.map(t=>`<button data-target="${t.midi}">${t.label}</button>`).join('')}</div>
+ <div class="tunerNote" id="tunerNote">–</div><div class="tunerCents" id="tunerCents">Mikrofon aktivieren</div>
+ <div class="tunerNeedle"><i id="tunerNeedle"></i></div><div class="tunerStatus" id="tunerStatus">Wähle optional eine Saite oder stimme chromatisch.</div>
+ <button class="coachStart" data-tunermic>${micState.enabled?'Mikrofon ausschalten':'Mikrofon aktivieren'}</button></div>`;
+ hub.querySelector('[data-back]').onclick=()=>{tunerState.active=false;toolsOpen=null;renderToolsHub()};
+ hub.querySelectorAll('[data-target]').forEach(b=>b.onclick=()=>{tunerState.target=Number(b.dataset.target);hub.querySelectorAll('[data-target]').forEach(x=>x.classList.toggle('active',x===b));updateTunerUI()});
+ hub.querySelector('[data-tunermic]').onclick=async()=>{await enableMic();renderTuner(hub)};
+ tunerState.active=true;updateTunerUI();
+}
+function updateTunerUI(){
+ if(!tunerState.active||toolsOpen!=='tuner')return;
+ const noteEl=document.getElementById('tunerNote');if(!noteEl)return;
+ if(micState.stableMidi==null){
+   noteEl.textContent='–';document.getElementById('tunerCents').textContent='Kein stabiler Ton erkannt';document.getElementById('tunerNeedle').style.transform='rotate(0deg)';return;
+ }
+ const targetMidi=tunerState.target??Math.round(micState.midi);
+ const cents=(micState.midi-targetMidi)*100;
+ noteEl.textContent=midiName(targetMidi);
+ document.getElementById('tunerCents').textContent=`${cents>0?'+':''}${Math.round(cents)} cent`;
+ document.getElementById('tunerNeedle').style.transform=`rotate(${Math.max(-45,Math.min(45,cents*.9))}deg)`;
+ document.getElementById('tunerStatus').textContent=Math.abs(cents)<=5?'Gestimmt':cents<0?'Zu tief – höher stimmen':'Zu hoch – tiefer stimmen';
+}
+
 function render(){
  const hub=document.getElementById('practiceHub');
  document.querySelectorAll('[data-library]').forEach(b=>b.classList.toggle('active',b.dataset.library===currentLibrary));
  if(currentLibrary==='practice'){list.style.display='none';hub.style.display='grid';paintCoachStep();renderPracticeHub();document.getElementById('title').textContent='Practice';document.getElementById('goal').textContent='PLAY. sagt dir, was jetzt dran ist. Optionen gibt es nur unter Anpassen.';return}
- if(currentLibrary==='learn'){list.style.display='none';hub.style.display='grid';renderLearnHub();document.getElementById('title').textContent='Lernen';document.getElementById('goal').textContent='Lernen → isoliert üben → musikalisch anwenden → Song spielen.';return}
+ if(currentLibrary==='learn'){list.style.display='none';hub.style.display='grid';renderLearnHub();document.getElementById('title').textContent='Lernen';document.getElementById('goal').textContent='Lernpfade öffnen und Schritt für Schritt durcharbeiten.';return} if(currentLibrary==='tools'){renderToolsHub();document.getElementById('title').textContent='Tools';document.getElementById('goal').textContent='Tuner, Mikrofon und Backup.';return}
  hub.style.display='none';list.style.display='flex';
  const available=EX.map((e,i)=>({e,i})).filter(x=>(x.e.type||'exercise')===currentLibrary);
  if(!available.some(x=>x.i===current))current=available[0]?.i??0;
  list.innerHTML=available.map(({e,i})=>`<button data-i="${i}" class="${i===current?'active':''}"><b>${e.title}</b><br><span style="font-size:9px;opacity:.75">${e.level}</span></button>`).join('');
- document.getElementById('title').textContent=EX[current].title;document.getElementById('goal').textContent=EX[current].goal;document.getElementById('musicText').textContent=musicText(EX[current])+(EX[current].source?` Quelle/Arrangement: ${EX[current].source}.`:'');
+ document.getElementById('title').textContent=EX[current].title;document.getElementById('goal').textContent=EX[current].goal;
+ const oldLearnBack=document.getElementById('learnBackBtn');if(oldLearnBack)oldLearnBack.remove();
+ if(window.__returnToLearn){const bb=document.createElement('button');bb.id='learnBackBtn';bb.className='secondary';bb.style.marginTop='8px';bb.textContent='← Zurück zum Lernpfad';bb.onclick=()=>{stopAll();currentLibrary='learn';learnOpen=window.__returnToLearn;window.__returnToLearn=null;render()};document.getElementById('goal').after(bb)}
+document.getElementById('musicText').textContent=musicText(EX[current])+(EX[current].source?` Quelle/Arrangement: ${EX[current].source}.`:'');
 
  bpmSel.innerHTML=[40,50,55,60,65,70,75,80,90,100,110,120,140].map(v=>`<option ${v===EX[current].bpm?'selected':''}>${v}</option>`).join('');
  if(activeCoachStep){
@@ -1099,7 +1174,7 @@ document.getElementById('play').onclick=()=>run?stopAll():start();
 document.getElementById('stop').onclick=()=>{if(activeCoachStep){pauseCoachClock();stopAll();statusEl.textContent='Pausiert · PLAY zum Fortsetzen'}else stopAll()};bpmSel.onchange=()=>{if(run)start()};countSel.onchange=()=>{if(run)start()};guideSel.onchange=()=>{if(run)start()};fingeringSel.onchange=()=>{renderScore()};
 document.getElementById('micToggle')?.addEventListener('click',enableMic);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){stopAll();if(micState.enabled)disableMic()}});
-document.querySelectorAll('[data-library]').forEach(b=>b.onclick=()=>{if(coachPlanState)return;stopAll();currentLibrary=b.dataset.library;render()});
+document.querySelectorAll('[data-library]').forEach(b=>b.onclick=()=>{if(coachPlanState){alert('Beende oder brich zuerst die laufende Coach-Session ab.');return}stopAll();currentLibrary=b.dataset.library;if(currentLibrary!=='learn')learnOpen=null;if(currentLibrary!=='tools')toolsOpen=null;render()});
 if(coachPlanState?.plan?.length){launchCoachIndex(coachPlanState.index||0)}else render();
 
 
