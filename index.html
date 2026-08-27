@@ -62,6 +62,8 @@ header{display:flex;justify-content:space-between;align-items:end;margin-bottom:
 .tunerStrings{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.tunerStrings button{min-height:44px;border:1px solid var(--line);border-radius:10px;background:#fff}.tunerStrings button.active{background:var(--ink);color:#fff}
 .tunerStatus{text-align:center;font-size:12px}
 @media(max-width:620px){.toolsGrid{grid-template-columns:1fr}.librarySwitch{grid-template-columns:repeat(2,1fr)}.tunerNote{font-size:58px}}
+
+.progressGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.progressCard{border:1px solid var(--line);border-radius:16px;padding:12px;background:#fff;display:grid;gap:6px}.progressCard b{font-size:18px}.progressCard span,.progressCard p{font-size:10px;color:var(--muted);margin:0}.skillBar{height:7px;background:#e4dfd8;border-radius:999px;overflow:hidden}.skillBar i{display:block;height:100%;background:var(--accent)}.keyMatrix{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.keyCell{border:1px solid var(--line);border-radius:10px;padding:8px;background:#fbfaf8}.keyCell b{font-size:11px}.keyCell small{display:block;font-size:8px;color:var(--muted)}.tunerScale{display:grid;grid-template-columns:repeat(11,1fr);gap:2px;align-items:end;height:36px}.tunerScale i{height:10px;background:#d6d0c9;border-radius:2px}.tunerScale i:nth-child(6){height:26px;background:var(--ink)}.tunerHz{text-align:center;font-size:11px;color:var(--muted)}.tuningMode{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}.tuningMode button{min-height:40px;border:1px solid var(--line);border-radius:10px;background:#fff}.tuningMode button.active{background:var(--ink);color:#fff}@media(max-width:720px){.progressGrid{grid-template-columns:1fr}.keyMatrix{grid-template-columns:repeat(3,1fr)}}
 </style>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#171717">
@@ -74,7 +76,7 @@ header{display:flex;justify-content:space-between;align-items:end;margin-bottom:
 <main class="app">
 <header><div><div class="brand">PLAY.</div><div class="sub">40 Übungen · 10 Songs · Noten + TAB + Timing</div></div><div class="sub">Noten + TAB + Timing</div></header>
 <section class="card">
-<div class="librarySwitch"><button class="active" data-library="practice">Practice</button><button data-library="learn">Lernen</button><button data-library="song">Songs</button><button data-library="tools">Tools</button></div>
+<div class="librarySwitch"><button class="active" data-library="practice">Practice</button><button data-library="learn">Lernen</button><button data-library="song">Songs</button><button data-library="progress">Fortschritt</button><button data-library="tools">Tools</button></div>
 <div id="practiceHub"></div><div class="exercise-list" id="exerciseList"></div>
 </section>
 <section class="card">
@@ -764,7 +766,7 @@ let micState={
  enabled:false,stream:null,source:null,analyser:null,buf:null,timer:null,
  midi:null,cents:null,rms:0,stableMidi:null,stableFrames:0,
  expected:null,runHits:new Set(),runExpected:new Set(),lastRunResult:null,
- eventSeenAt:{}
+ eventSeenAt:{},timingErrors:[]
 };
 const NOTE_NAMES_SHARP=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
 function midiName(m){if(m==null||!Number.isFinite(m))return '–';const n=Math.round(m);return NOTE_NAMES_SHARP[(n%12+12)%12]+(Math.floor(n/12)-1)}
@@ -830,7 +832,7 @@ function scoreMicExpected(){
  const semitoneError=Math.abs(micState.midi-e.midi);
  if(semitoneError<=0.48){
    e.hit=true;micState.runHits.add(e.index);
-   micState.eventSeenAt[e.index]=now;
+   micState.eventSeenAt[e.index]=now;micState.timingErrors.push(Math.abs(now-((e.openAt+e.closeAt)/2)));
  }
 }
 async function enableMic(){
@@ -858,7 +860,7 @@ function disableMic(){
  updateMicUI();
 }
 function resetMicRun(ex){
- micState.runHits=new Set();micState.runExpected=new Set();micState.eventSeenAt={};micState.lastRunResult=null;micState.expected=null;
+ micState.runHits=new Set();micState.runExpected=new Set();micState.eventSeenAt={};micState.timingErrors=[];micState.lastRunResult=null;micState.expected=null;
  if(micState.enabled&&micScorableExercise(ex)){
    ex.events.forEach((ev,i)=>{if(singleNoteEvent(ev))micState.runExpected.add(i)});
    document.getElementById('micHint').textContent='PLAY. bewertet Tonhöhe und Timing dieses Durchgangs automatisch.';
@@ -869,10 +871,12 @@ function resetMicRun(ex){
 }
 function finishMicRun(){
  const total=micState.runExpected.size,hits=micState.runHits.size;
- const score=total?hits/total:null;
- micState.lastRunResult={hits,total,score,passed:score!=null&&score>=0.82};
- micState.expected=null;updateMicUI();
- return micState.lastRunResult;
+ const pitchScore=total?hits/total:null;
+ const avgTiming=micState.timingErrors.length?micState.timingErrors.reduce((a,b)=>a+b,0)/micState.timingErrors.length:null;
+ const timingScore=avgTiming==null?null:Math.max(0,1-Math.min(1,avgTiming/.18));
+ const score=pitchScore==null?null:(timingScore==null?pitchScore:pitchScore*.72+timingScore*.28);
+ micState.lastRunResult={hits,total,score,pitchScore,timingScore,avgTiming,passed:score!=null&&score>=.82};
+ micState.expected=null;updateMicUI();return micState.lastRunResult;
 }
 
 function click(t,accent){const c=audio(),o=c.createOscillator(),g=c.createGain();o.frequency.value=accent?1300:820;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(accent?.12:.07,t+.002);g.gain.exponentialRampToValueAtTime(.0001,t+.04);o.connect(g).connect(c.destination);o.start(t);o.stop(t+.05);nodes.push(o,g)}
@@ -946,6 +950,21 @@ function renderScore(){
 
 
 
+
+let playPerformance={history:[],byExercise:{},byKey:{},byFamily:{}};
+try{playPerformance=Object.assign(playPerformance,JSON.parse(localStorage.getItem('play_performance_v8')||'{}'))}catch{}
+function savePerformance(){try{localStorage.setItem('play_performance_v8',JSON.stringify(playPerformance))}catch{}}
+function pct(n,d){return d?Math.round(n/d*100):0}
+function pushPerformance(rec){
+ playPerformance.history.push(rec);playPerformance.history=playPerformance.history.slice(-400);
+ const ex=playPerformance.byExercise[rec.exerciseId]||(playPerformance.byExercise[rec.exerciseId]={attempts:0,clean:0,bestTempo:0,lastPitch:null,lastTiming:null});
+ ex.attempts++;if(rec.passed)ex.clean++;ex.bestTempo=Math.max(ex.bestTempo,rec.tempo||0);ex.lastPitch=rec.pitchScore;ex.lastTiming=rec.timingScore;
+ const ks=playPerformance.byKey[rec.key]||(playPerformance.byKey[rec.key]={attempts:0,clean:0});ks.attempts++;if(rec.passed)ks.clean++;
+ const fs=playPerformance.byFamily[rec.family]||(playPerformance.byFamily[rec.family]={attempts:0,clean:0});fs.attempts++;if(rec.passed)fs.clean++;
+ savePerformance();
+}
+function nextTempoFor(id,current){const s=playPerformance.byExercise[id];if(!s||s.attempts<2)return current;const rate=s.clean/s.attempts;return rate>=.8?Math.min(180,current+4):rate<.45?Math.max(35,current-4):current}
+
 let teacherStats={sessions:0,totalActiveSec:0,skills:{},lastSession:null};
 try{teacherStats=Object.assign(teacherStats,JSON.parse(localStorage.getItem('play_teacher_v5')||'{}'))}catch{}
 function saveTeacher(){try{localStorage.setItem('play_teacher_v5',JSON.stringify(teacherStats))}catch{}}
@@ -1018,12 +1037,20 @@ function takeNextCoach(){}
 
 
 let toolsOpen=null;
-let tunerState={active:false,target:null};
+let tunerState={active:false,target:null,mode:'standard'};
 
 const TUNER_TARGETS=[
  {name:'E2',midi:40,label:'E'},{name:'A2',midi:45,label:'A'},{name:'D3',midi:50,label:'D'},
  {name:'G3',midi:55,label:'G'},{name:'B3',midi:59,label:'B'},{name:'E4',midi:64,label:'e'}
 ];
+
+
+function renderProgressHub(){
+ const hub=document.getElementById('practiceHub');hub.style.display='grid';list.style.display='none';
+ const hist=playPerformance.history||[],clean=hist.filter(x=>x.passed).length,avgP=hist.length?Math.round(hist.reduce((a,b)=>a+(b.pitchScore||0),0)/hist.length*100):0,avgT=hist.length?Math.round(hist.reduce((a,b)=>a+(b.timingScore||0),0)/hist.length*100):0;
+ const keys=KEYS.map(([id,name])=>{const s=playPerformance.byKey[id]||{attempts:0,clean:0};return {name,attempts:s.attempts,rate:pct(s.clean,s.attempts)}})
+ hub.innerHTML=`<div class="progressGrid"><div class="progressCard"><span>SAUBERE DURCHGÄNGE</span><b>${pct(clean,hist.length)}%</b><div class="skillBar"><i style="width:${pct(clean,hist.length)}%"></i></div></div><div class="progressCard"><span>TONHÖHE</span><b>${avgP}%</b></div><div class="progressCard"><span>TIMING</span><b>${avgT}%</b></div><div class="progressCard"><span>SESSIONS</span><b>${teacherStats.sessions||0}</b></div></div><div class="progressCard"><span>TONARTEN</span><div class="keyMatrix">${keys.map(k=>`<div class="keyCell"><b>${k.name}</b><small>${k.attempts?`${k.rate}% · ${k.attempts}x`:'noch offen'}</small></div>`).join('')}</div></div>`;
+}
 
 function renderToolsHub(){
  const hub=document.getElementById('practiceHub');hub.style.display='grid';list.style.display='none';
@@ -1055,15 +1082,9 @@ function renderToolsHub(){
  hub.querySelector('[data-back]').onclick=()=>{toolsOpen=null;renderToolsHub()};
 }
 function renderTuner(hub){
- hub.innerHTML=`<div class="familyPanel tunerPanel"><div class="familyTop"><button class="secondary" data-back>← Tools</button><b>Tuner</b></div>
- <div class="tunerStrings">${TUNER_TARGETS.map(t=>`<button data-target="${t.midi}">${t.label}</button>`).join('')}</div>
- <div class="tunerNote" id="tunerNote">–</div><div class="tunerCents" id="tunerCents">Mikrofon aktivieren</div>
- <div class="tunerNeedle"><i id="tunerNeedle"></i></div><div class="tunerStatus" id="tunerStatus">Wähle optional eine Saite oder stimme chromatisch.</div>
- <button class="coachStart" data-tunermic>${micState.enabled?'Mikrofon ausschalten':'Mikrofon aktivieren'}</button></div>`;
- hub.querySelector('[data-back]').onclick=()=>{tunerState.active=false;toolsOpen=null;renderToolsHub()};
- hub.querySelectorAll('[data-target]').forEach(b=>b.onclick=()=>{tunerState.target=Number(b.dataset.target);hub.querySelectorAll('[data-target]').forEach(x=>x.classList.toggle('active',x===b));updateTunerUI()});
- hub.querySelector('[data-tunermic]').onclick=async()=>{await enableMic();renderTuner(hub)};
- tunerState.active=true;updateTunerUI();
+ const drop=TUNER_TARGETS.map(x=>({...x}));drop[0]={name:'D2',midi:38,label:'D'};const targets=tunerState.mode==='dropd'?drop:TUNER_TARGETS;
+ hub.innerHTML=`<div class="familyPanel tunerPanel"><div class="familyTop"><button class="secondary" data-back>← Tools</button><b>Tuner</b></div><div class="tuningMode"><button data-tuning="standard" class="${tunerState.mode!=='dropd'?'active':''}">Standard</button><button data-tuning="dropd" class="${tunerState.mode==='dropd'?'active':''}">Drop D</button></div><div class="tunerStrings">${targets.map(t=>`<button data-target="${t.midi}">${t.label}</button>`).join('')}</div><div class="tunerNote" id="tunerNote">–</div><div class="tunerHz" id="tunerHz">– Hz</div><div class="tunerCents" id="tunerCents">Mikrofon aktivieren</div><div class="tunerScale">${Array.from({length:11},()=>'<i></i>').join('')}</div><div class="tunerNeedle"><i id="tunerNeedle"></i></div><div class="tunerStatus" id="tunerStatus">Chromatisch oder gezielt eine Saite stimmen.</div><button class="coachStart" data-tunermic>${micState.enabled?'Mikrofon ausschalten':'Mikrofon aktivieren'}</button></div>`;
+ hub.querySelector('[data-back]').onclick=()=>{tunerState.active=false;toolsOpen=null;renderToolsHub()};hub.querySelectorAll('[data-tuning]').forEach(b=>b.onclick=()=>{tunerState.mode=b.dataset.tuning;tunerState.target=null;renderTuner(hub)});hub.querySelectorAll('[data-target]').forEach(b=>b.onclick=()=>{tunerState.target=Number(b.dataset.target);updateTunerUI()});hub.querySelector('[data-tunermic]').onclick=async()=>{await enableMic();renderTuner(hub)};tunerState.active=true;updateTunerUI();
 }
 function updateTunerUI(){
  if(!tunerState.active||toolsOpen!=='tuner')return;
@@ -1074,7 +1095,7 @@ function updateTunerUI(){
  const targetMidi=tunerState.target??Math.round(micState.midi);
  const cents=(micState.midi-targetMidi)*100;
  noteEl.textContent=midiName(targetMidi);
- document.getElementById('tunerCents').textContent=`${cents>0?'+':''}${Math.round(cents)} cent`;
+ document.getElementById('tunerCents').textContent=`${cents>0?'+':''}${Math.round(cents)} cent`;const hzEl=document.getElementById('tunerHz');if(hzEl&&micState.midi!=null)hzEl.textContent=`${(440*Math.pow(2,(micState.midi-69)/12)).toFixed(1)} Hz`;
  document.getElementById('tunerNeedle').style.transform=`rotate(${Math.max(-45,Math.min(45,cents*.9))}deg)`;
  document.getElementById('tunerStatus').textContent=Math.abs(cents)<=5?'Gestimmt':cents<0?'Zu tief – höher stimmen':'Zu hoch – tiefer stimmen';
 }
@@ -1083,7 +1104,7 @@ function render(){
  const hub=document.getElementById('practiceHub');
  document.querySelectorAll('[data-library]').forEach(b=>b.classList.toggle('active',b.dataset.library===currentLibrary));
  if(currentLibrary==='practice'){list.style.display='none';hub.style.display='grid';paintCoachStep();renderPracticeHub();document.getElementById('title').textContent='Practice';document.getElementById('goal').textContent='PLAY. sagt dir, was jetzt dran ist. Optionen gibt es nur unter Anpassen.';return}
- if(currentLibrary==='learn'){list.style.display='none';hub.style.display='grid';renderLearnHub();document.getElementById('title').textContent='Lernen';document.getElementById('goal').textContent='Lernpfade öffnen und Schritt für Schritt durcharbeiten.';return} if(currentLibrary==='tools'){renderToolsHub();document.getElementById('title').textContent='Tools';document.getElementById('goal').textContent='Tuner, Mikrofon und Backup.';return}
+ if(currentLibrary==='learn'){list.style.display='none';hub.style.display='grid';renderLearnHub();document.getElementById('title').textContent='Lernen';document.getElementById('goal').textContent='Lernpfade öffnen und Schritt für Schritt durcharbeiten.';return} if(currentLibrary==='progress'){renderProgressHub();document.getElementById('title').textContent='Fortschritt';document.getElementById('goal').textContent='Tonhöhe, Timing, Tempi und Tonarten im Blick.';return} if(currentLibrary==='tools'){renderToolsHub();document.getElementById('title').textContent='Tools';document.getElementById('goal').textContent='Tuner, Mikrofon und Backup.';return}
  hub.style.display='none';list.style.display='flex';
  const available=EX.map((e,i)=>({e,i})).filter(x=>(x.e.type||'exercise')===currentLibrary);
  if(!available.some(x=>x.i===current))current=available[0]?.i??0;
@@ -1136,7 +1157,7 @@ function start(){
    }
    const elapsed=now-playAt;
    if(elapsed>=total){
-     const micResult=micState.enabled&&micScorableExercise(ex)?finishMicRun():null;
+     const micResult=micState.enabled&&micScorableExercise(ex)?finishMicRun():null;if(micResult){pushPerformance({date:Date.now(),exerciseId:ex.id,key:prefs?.key||'C',family:prefs?.family||'practice',tempo:bpm,pitchScore:micResult.pitchScore,timingScore:micResult.timingScore,passed:micResult.passed});if(micResult.passed)EX[current].bpm=nextTempoFor(ex.id,bpm)}
      if(activeCoachStep&&!activeCoachStep.finished){
        const cleanRun=!micResult || micResult.passed;
        if(cleanRun)activeCoachStep.runs++;
